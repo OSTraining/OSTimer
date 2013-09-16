@@ -4,7 +4,7 @@
  * @contact   www.ostraining.com, support@ostraining.com
  * @copyright 2013 Open Source Training, LLC. All rights reserved
  * @license   http://www.gnu.org/licenses/gpl.html GNU/GPL
- */
+*/
 
 defined('_JEXEC') or die();
 
@@ -37,54 +37,107 @@ class modOSTimerHelper
 		$trans_hr 		 = @$params->get('ev_trans_hr');
 		$trans_min 		 = @$params->get('ev_trans_min');
 		$trans_sec 		 = @$params->get('ev_trans_sec');
-        //$ev_hour = $ev_hour+$ev_offset;
+		$ev_repeat		 = @$params->get('ev_repeat'); //get repeat
+		$ev_timeformat	 = @$params->get('ev_timeformat'); //time format, either 12h or 24h
 
-		$eventdown = mktime($ev_hour, $ev_minutes, 0, $ev_month, $ev_day, $ev_year);
-		$today = time();
+		$today = time(); //get current time
+		if($ev_repeat) //if repeat is enabled
+		{
+			$ev_month = date("m"); //get current month for repeat
+			$ev_year = date("Y"); //get current year for repeat
+			$ev_reset = @$params->get('ev_reset'); //get hour for reset
+			$ev_dow = @$params->get('ev_dow'); //get day of week
+			switch($ev_dow)
+			{
+				case 1:
+					$new = "monday"; 
+				break;
+				case 2:
+					$new = "tuesday";
+				break;
+				case 3:
+					$new = "wednesday";
+				break;
+				case 4:
+					$new = "thursday";
+				break;
+				case 5:
+					$new = "friday";
+				break;
+				case 6:
+					$new = "saturday";
+				break;
+				case 7:
+					$new = "sunday";
+				break;
+				default:
+					$new = "sunday";
+				break;
+			}
+			$ev_day = date( "d", strtotime($new)) - 7; //get next event day with offset
+			$eventdown = mktime($ev_hour, $ev_minutes, 0, $ev_month, $ev_day, $ev_year); //repeat
+			if(($today - $eventdown - 25200) > $ev_reset*60*60) //testing hour*60m/h*60m/s
+				$ev_day = date( "d", strtotime('next '.$new)); //get next event day
+		}
+		$eventdown = mktime($ev_hour, $ev_minutes, 0, $ev_month, $ev_day, $ev_year); //no repeat
 		$sec	= $eventdown - $today;
-		$days	= floor(($eventdown - $today) /86400);
+		$days	= floor(($eventdown - $today)/86400);
 		if ($days * 86400 + $today > $eventdown)
 			$days--;
-		$h1		= floor(($eventdown - $today) /3600);
-		$m1		= floor(($eventdown - $today) /60);
+		//if($days < 1) //last day
+
+		$h1		= floor(($eventdown - $today)/3600);
+		$m1		= floor(($eventdown - $today)/60);
 		$hour	= floor($sec/60/60 - $days*24);
 		$min	= floor($sec/60 - $hour*60);
 
 		//collect data in an array
-		$i		= 0;
-		$lists	= array();
-		$lists[0] = 0;
-		$lists[$i] = (object) $lists[$i];
+		$i			= 0;
+		$lists		= array();
+		$lists[0] 	= 0;
+		$lists[$i] 	= (object) $lists[$i];
 
-		if ($ev_displaytitle) {
+		if ($ev_displaytitle) 
+		{
 			$lists[$i]->title = $ev_title;
-		} else {}
+		} 
+		else {}
 
-
-				if ($ev_displaydate) {
-				if ($ev_dateformat == 1){
-					$lists[$i]->displaydate = $ev_month.'.'.$ev_day.'.'.$ev_year.' '.$ev_hour.':'.$ev_minutes;
-					}
-				else{
-					$lists[$i]->displaydate = $ev_day.'.'.$ev_month.'.'.$ev_year.' '.$ev_hour.':'.$ev_minutes;
-					}
-		} else {}
-
-				if($ev_ddaysleft == '1') {
-	        	$lists[$i]->dney = $trans_days;
-		} else {}
-
-				$lists[$i]->daycount = $days;
+		if ($ev_displaydate) 
+		{
+			if($ev_timeformat < 1) //12h
+				$timeFormat  = DATE("g:i a", STRTOTIME($ev_hour.':'.$ev_minutes));
+			else
+				$timeFormat  = DATE("H:i", STRTOTIME($ev_hour.':'.$ev_minutes));
+			if ($ev_dateformat == 1) //international
+			{
+				$lists[$i]->displaydate = $ev_month.'/'.$ev_day.'/'.$ev_year.' '.$timeFormat;
+			}
+			else //us
+			{
+				$lists[$i]->displaydate = $ev_day.'/'.$ev_month.'/'.$ev_year.' '.$timeFormat;
+			}
+		} 
+		else
+			$lists[$i]->displaydate = ''; //nothing for now
+		if($ev_ddaysleft == '1') //if enabled
+		{
+			$lists[$i]->dney = $trans_days;
+		} 
+		else
+			$lists[$i]->dney = ''; //nothing for now
+		$lists[$i]->daycount = $days;
 		static $timestamp;
 		//$timestamp = microtime(true);
 		$timestamp++;
 		$lists[$i]->timestamp = $timestamp;
-		if (($ev_displayhour == '1') && ($ev_js == '1')) {
-          	    	$lists[$i]->DetailCount = '<span id="clockJS'.$timestamp.'"></span>';
+		if (($ev_displayhour) && ($ev_js))
+		{
+			$lists[$i]->DetailCount = '<span id="clockJS'.$timestamp.'"></span>';
             $lists[$i]->JS_enable 		= $ev_js;
-            $lists[$i]->JS_month 		= $ev_month;
-            $lists[$i]->JS_day 			= $ev_day;
-            $lists[$i]->JS_year 		= $ev_year;
+			$lists[$i]->JS_month 		= $ev_month;
+			$lists[$i]->JS_day 			= $ev_day;
+			$lists[$i]->JS_year 		= $ev_year;
             $lists[$i]->JS_hour 		= $ev_hour;
             $lists[$i]->JS_min 			= $ev_minutes;
             $lists[$i]->JS_endtime 		= $ev_endtime;
@@ -92,98 +145,115 @@ class modOSTimerHelper
 			$lists[$i]->JS_trans_hr 	= $trans_hr;
 			$lists[$i]->JS_trans_min	= $trans_min;
 			$lists[$i]->JS_trans_sec	= $trans_sec;
-	 	} else if (($ev_displayhour == '1') && ($ev_js == '0')) {
+	 	} 
+		else if ($ev_displayhour && !$ev_js) 
+		{
             $curmin = date('i');
-            if ($curmin >= $ev_minutes) {
+            if ($curmin >= $ev_minutes)
+			{
             	$min = $curmin - $ev_minutes;
-            } else {
+            } 
+			else
+			{
             	$min = $ev_minutes - $curmin;
             }
 	 		$lists[$i]->DetailCount = $hour.' Hrs. '.$min.' Min.';
-
-	 	} else {
-				if ($days <= 0)
-				{
-					$lists[$i]->DetailCount = $ev_endtime;
-				}
+	 	} 
+		else 
+		{
+			if ($days <= 0)
+			{
+				$lists[$i]->DetailCount = $ev_endtime;
 			}
-			// Need to set it to an open string in order to get rid of: Notice: Undefined property: stdClass::$DetailLink in modules\mod_ostimer\tmpl\default.php on line 27
-			$lists[$i]->DetailLink ="";
+		}
+		// Need to set it to an open string in order to get rid of: Notice: Undefined property: stdClass::$DetailLink in modules\mod_ostimer\tmpl\default.php on line 27
+		$lists[$i]->DetailLink ="";
+			
+		if(($ev_displayURL == '1') && $ev_URL && $ev_URLtitle ) {
+			$lists[$i]->DetailLink = '<a href="'.$ev_URL.'" title="'.$ev_URLtitle.'">'.$ev_URLtitle.'</a>'; }
 
-			 	if(($ev_displayURL == '1') && $ev_URL && $ev_URLtitle ) {
-        	$lists[$i]->DetailLink = '<a href="'.$ev_URL.'" title="'.$ev_URLtitle.'">'.$ev_URLtitle.'</a>'; }
-
-        if ($loadcss == '1') {
+        if ($loadcss == '1') 
+		{
 			$header = '';
 			$header .= '<link rel="stylesheet" href="'.JURI::base().'modules/mod_ostimer/tmpl/style.css" type="text/css" />';
-
+			
 			$docContainer = JFactory::getDocument();
 			$docContainer->addCustomTag($header);
 			//$mainframe->addCustomTag($header);
 			//$mainframe->addCustomHeadTag($header);
-		} else {}
+		} 
+		else {}
         return $lists;
 	}
 }
 
 function countdounJS($ev_month, $ev_day, $ev_year, $ev_hour, $ev_minutes, $ev_endtime, $ev_offset, $trans_hr, $trans_min, $trans_sec, $id)
+{
+if ($ev_hour >= '12')
+{
+	$curHour = $ev_hour - '12';
+	$curSet = 'PM';
+} 
+else 
+{
+	$curHour = $ev_hour;
+	$curSet = 'AM';
+}
+//echo $curHour.'<br />';
+	
+?>
+
+<script language="JavaScript" type="text/javascript">
+TargetDate<?php echo($id);?> = "<?php echo $ev_month; ?>/<?php echo $ev_day; ?>/<?php echo $ev_year; ?> <?php echo $curHour; ?>:<?php echo $ev_minutes; ?> <?php echo $curSet; ?>";
+CountActive<?php echo($id);?> = true;
+CountStepper<?php echo($id);?> = -1;
+LeadingZero<?php echo($id);?> = true;
+
+DisplayFormat<?php echo($id);?> = "%%H%% <?php echo $trans_hr; ?> %%M%% <?php echo $trans_min; ?> %%S%% <?php echo $trans_sec; ?>";
+FinishMessage<?php echo($id);?> = "<?php echo $ev_endtime; ?>";
+
+function calcage<?php echo($id);?>(secs, num1, num2) 
+{
+	s = ((Math.floor(secs/num1))%num2).toString();
+	if (LeadingZero<?php echo($id);?> && s.length < 2)
+		s = "0" + s;
+	return s;
+}
+
+function CountBack<?php echo($id);?>(secs)
+{
+	if (secs < 0) //finished counting
 	{
-	if ($ev_hour >= '12') {
-		$curHour = $ev_hour - '12';
-		$curSet = 'PM';
-	} else {
-		$curHour = $ev_hour;
-		$curSet = 'AM';
+		document.getElementById("clockJS<?php echo($id);?>").innerHTML = FinishMessage<?php echo($id);?>;
+		return;
 	}
-	//echo $curHour.'<br />';
-
-     ?>
-	<script language="JavaScript" type="text/javascript">
-	TargetDate<?php echo($id);?> = "<?php echo $ev_month; ?>/<?php echo $ev_day; ?>/<?php echo $ev_year; ?> <?php echo $curHour; ?>:<?php echo $ev_minutes; ?> <?php echo $curSet; ?>";
-	CountActive<?php echo($id);?> = true;
-	CountStepper<?php echo($id);?> = -1;
-	LeadingZero<?php echo($id);?> = true;
-
-	DisplayFormat<?php echo($id);?> = "%%H%% <?php echo $trans_hr; ?> %%M%% <?php echo $trans_min; ?> %%S%% <?php echo $trans_sec; ?>";
-	FinishMessage<?php echo($id);?> = "<?php echo $ev_endtime; ?>";
-	function calcage<?php echo($id);?>(secs, num1, num2) {
-	  s = ((Math.floor(secs/num1))%num2).toString();
-	  if (LeadingZero<?php echo($id);?> && s.length < 2)
-	    s = "0" + s;
-	  return s;
-	}
-	function CountBack<?php echo($id);?>(secs) {
-	  if (secs < 0) {
-	    document.getElementById("clockJS<?php echo($id);?>").innerHTML = FinishMessage<?php echo($id);?>;
-	    return;
-	  }
-	  if (calcage<?php echo($id);?>(secs,86400,100000)==0 && calcage<?php echo($id);?>(secs,3600,24) == 0)
+	if (calcage<?php echo($id);?>(secs,86400,100000)==0 && calcage<?php echo($id);?>(secs,3600,24) == 0)
 		DisplayFormat<?php echo($id);?> = "%%M%% <?php echo $trans_min; ?> %%S%% <?php echo $trans_sec; ?>";
-	  if (calcage<?php echo($id);?>(secs,86400,100000)==0 && calcage<?php echo($id);?>(secs,3600,24) == 0 && calcage<?php echo($id);?>(secs,60,60) == 0)
+	if (calcage<?php echo($id);?>(secs,86400,100000)==0 && calcage<?php echo($id);?>(secs,3600,24) == 0 && calcage<?php echo($id);?>(secs,60,60) == 0)
 		DisplayFormat<?php echo($id);?> = "%%S%% <?php echo $trans_sec; ?>";
 
-	  DisplayStr = DisplayFormat<?php echo($id);?>.replace(/%%D%%/g, calcage<?php echo($id);?>(secs,86400,100000));
-	  DisplayStr = DisplayStr.replace(/%%H%%/g, calcage<?php echo($id);?>(secs,3600,24));
-	  DisplayStr = DisplayStr.replace(/%%M%%/g, calcage<?php echo($id);?>(secs,60,60));
-	  DisplayStr = DisplayStr.replace(/%%S%%/g, calcage<?php echo($id);?>(secs,1,60));
-	  document.getElementById("clockJS<?php echo($id);?>").innerHTML = DisplayStr;
-	  if (CountActive<?php echo($id);?>)
-	    setTimeout("CountBack<?php echo($id);?>(" + (secs+CountStepper<?php echo($id);?>) + ")", SetTimeOutPeriod<?php echo($id);?>);
-	}
+	DisplayStr = DisplayFormat<?php echo($id);?>.replace(/%%D%%/g, calcage<?php echo($id);?>(secs,86400,100000));
+	DisplayStr = DisplayStr.replace(/%%H%%/g, calcage<?php echo($id);?>(secs,3600,24));
+	DisplayStr = DisplayStr.replace(/%%M%%/g, calcage<?php echo($id);?>(secs,60,60));
+	DisplayStr = DisplayStr.replace(/%%S%%/g, calcage<?php echo($id);?>(secs,1,60));
+	document.getElementById("clockJS<?php echo($id);?>").innerHTML = DisplayStr;
+	if (CountActive<?php echo($id);?>)
+		setTimeout("CountBack<?php echo($id);?>(" + (secs+CountStepper<?php echo($id);?>) + ")", SetTimeOutPeriod<?php echo($id);?>);
+}
 
-	CountStepper<?php echo($id);?> = Math.ceil(CountStepper<?php echo($id);?>);
-	if (CountStepper<?php echo($id);?> == 0)
-	  CountActive<?php echo($id);?> = false;
-	var SetTimeOutPeriod<?php echo($id);?> = (Math.abs(CountStepper<?php echo($id);?>)-1)*1000 + 990;
-	var dthen<?php echo($id);?> 	= new Date(TargetDate<?php echo($id);?>);
-	var dnow<?php echo($id);?> 	= new Date();
-	if(CountStepper<?php echo($id);?>>0)
-	  ddiff<?php echo($id);?> = new Date(dnow<?php echo($id);?>-dthen<?php echo($id);?>);
-	else
-	  ddiff<?php echo($id);?> = new Date(dthen<?php echo($id);?>-dnow<?php echo($id);?>);
-	gsecs<?php echo($id);?> = Math.floor(ddiff<?php echo($id);?>.valueOf()/1000);
-	CountBack<?php echo($id);?>(gsecs<?php echo($id);?>);
-	</script>
+CountStepper<?php echo($id);?> = Math.ceil(CountStepper<?php echo($id);?>);
+if (CountStepper<?php echo($id);?> == 0)
+	CountActive<?php echo($id);?> = false;
+var SetTimeOutPeriod<?php echo($id);?> = (Math.abs(CountStepper<?php echo($id);?>)-1)*1000 + 990;
+var dthen<?php echo($id);?> 	= new Date(TargetDate<?php echo($id);?>);
+var dnow<?php echo($id);?> 	= new Date();
+if(CountStepper<?php echo($id);?>>0)
+	ddiff<?php echo($id);?> = new Date(dnow<?php echo($id);?>-dthen<?php echo($id);?>);
+else
+	ddiff<?php echo($id);?> = new Date(dthen<?php echo($id);?>-dnow<?php echo($id);?>);
+gsecs<?php echo($id);?> = Math.floor(ddiff<?php echo($id);?>.valueOf()/1000);
+CountBack<?php echo($id);?>(gsecs<?php echo($id);?>);
+</script>
 
-	<?php
-	}
+<?php
+}
